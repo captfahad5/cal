@@ -70,6 +70,7 @@ const firebaseConfig = {
   messagingSenderId: "344600389752",
   appId: "1:344600389752:web:aacb60ca86a397cd53658d"
 };
+
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
@@ -82,34 +83,41 @@ function createEditButton(li, row){
     const editBtn = document.createElement('button');
     editBtn.textContent = 'Edit';
     editBtn.className = 'edit-btn';
+
     editBtn.onclick = ()=>{
-        let input = prompt('Enter amount (prefix + for addition, default is subtraction):', '');
-        if(input === null) return; 
-        input = input.trim();
-        if(input === '') return;
 
+        // Prefill prompt with current amounts
+        const currentText = li.amounts.join(' ');
+        const input = prompt('Enter amount (use + to add, default is subtraction):', currentText);
+
+        if(input === null) return; // cancel pressed
+
+        let newVal = input.trim();
+
+        if(!newVal) return;
+
+        // Determine if + or - exists
         let type2 = '-'; // default subtraction
-        let numStr = input;
+        if(newVal.startsWith('+')) type2 = '+';
+        else if(newVal.startsWith('-')) type2 = '-';
+        else type2 = '-'; // default if just number
 
-        if(input.startsWith('+')){
-            type2 = '+';
-            numStr = input.slice(1).trim();
-        }
+        const parsedAmount = parseFloat(newVal.replace(/[+-]/,'')); 
+        if(isNaN(parsedAmount)) return;
 
-        const newAmount = parseFloat(numStr);
-        if(isNaN(newAmount)){ alert('Invalid number!'); return; }
-
-        li.amounts.push(type2 + newAmount);
+        // Add the new entry to amounts array
+        li.amounts.push((type2 === '+'?'+':'-') + parsedAmount);
         updateNoteDisplay(li);
 
+        // Update balance
         const balanceCell = row.querySelector('.balance');
-        let currentBalance = parseFloat(balanceCell.textContent) || 0;
-        currentBalance += (type2 === '+' ? newAmount : -newAmount);
-        balanceCell.textContent = currentBalance.toFixed(2);
+        const currentBalance = parseFloat(balanceCell.textContent) || 0;
+        balanceCell.textContent = (currentBalance + (type2==='+'?parsedAmount:-parsedAmount)).toFixed(2);
 
         calculateTotal();
         saveAllWallets();
     };
+
     return editBtn;
 }
 
@@ -158,6 +166,7 @@ function loadWalletsRealtime(){
                     <button class="del-row-btn" onclick="deleteWalletRow(this)">DEL ROW</button>
                 </td>
             `;
+
             row.querySelector('.move-up-btn').onclick = function(){ moveRowUp(this); };
             row.querySelector('.move-down-btn').onclick = function(){ moveRowDown(this); };
 
@@ -300,7 +309,7 @@ function deleteWalletRow(btn){
 
 function addWallet(){
     const table = document.querySelector("#walletTable tbody");
-    const row = table.insertRow(-1); // insert at bottom
+    const row = table.insertRow();
     const id = db.collection("wallets").doc().id;
     row.dataset.id = id;
     row.innerHTML=`
