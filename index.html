@@ -79,45 +79,38 @@ function updateNoteDisplay(li){
     amountSpan.textContent = li.amounts.join(' ');
 }
 
+// ===== PATCHED EDIT BUTTON: DEFAULT SUBTRACTION IF NO PREFIX =====
 function createEditButton(li, row){
     const editBtn = document.createElement('button');
     editBtn.textContent = 'Edit';
     editBtn.className = 'edit-btn';
-
     editBtn.onclick = ()=>{
-
-        // Prefill prompt with current amounts
-        const currentText = li.amounts.join(' ');
-        const input = prompt('Enter amount (use + to add, default is subtraction):', currentText);
-
-        if(input === null) return; // cancel pressed
-
-        let newVal = input.trim();
-
-        if(!newVal) return;
-
-        // Determine if + or - exists
-        let type2 = '-'; // default subtraction
-        if(newVal.startsWith('+')) type2 = '+';
-        else if(newVal.startsWith('-')) type2 = '-';
-        else type2 = '-'; // default if just number
-
-        const parsedAmount = parseFloat(newVal.replace(/[+-]/,'')); 
-        if(isNaN(parsedAmount)) return;
-
-        // Add the new entry to amounts array
-        li.amounts.push((type2 === '+'?'+':'-') + parsedAmount);
-        updateNoteDisplay(li);
-
-        // Update balance
+        if(!li.amounts || li.amounts.length===0){ alert("No amounts to edit"); return; }
+        const current = li.amounts.join(',');
+        let input = prompt(`Current amounts: ${current}\n\nEdit comma-separated amounts (leave blank to cancel):`, current);
+        if(input===null) return;
+        const newAmounts = input.split(',').map(a=>a.trim()).filter(a=>a).map(a=>{
+            // ✅ default to subtraction if no + or -
+            if(!/^[+-]/.test(a)) a = '-' + a;
+            return a;
+        });
+        // recalc wallet balance
         const balanceCell = row.querySelector('.balance');
-        const currentBalance = parseFloat(balanceCell.textContent) || 0;
-        balanceCell.textContent = (currentBalance + (type2==='+'?parsedAmount:-parsedAmount)).toFixed(2);
-
+        let total = parseFloat(balanceCell.textContent) || 0;
+        li.amounts.forEach(a=>{
+            const val=parseFloat(a.replace(/[+-]/,''));
+            total -= a.startsWith('+')?val:-val;
+        });
+        newAmounts.forEach(a=>{
+            const val=parseFloat(a.replace(/[+-]/,''));
+            total += a.startsWith('+')?val:-val;
+        });
+        balanceCell.textContent = total.toFixed(2);
+        li.amounts = newAmounts;
+        updateNoteDisplay(li);
         calculateTotal();
         saveAllWallets();
     };
-
     return editBtn;
 }
 
@@ -166,7 +159,6 @@ function loadWalletsRealtime(){
                     <button class="del-row-btn" onclick="deleteWalletRow(this)">DEL ROW</button>
                 </td>
             `;
-
             row.querySelector('.move-up-btn').onclick = function(){ moveRowUp(this); };
             row.querySelector('.move-down-btn').onclick = function(){ moveRowDown(this); };
 
@@ -279,7 +271,7 @@ function addTransfer(btn, type){
         delBtn.onclick=()=>{
             let bal = parseFloat(balanceCell.textContent) || 0;
             li.amounts.forEach(a=>{
-                const val=parseFloat(a.replace(/[+-]/,''));
+                const val=parseFloat(a.replace(/[+-]/,'')); 
                 bal -= a.startsWith('+')?val:-val;
             });
             balanceCell.textContent = bal.toFixed(2);
@@ -309,7 +301,7 @@ function deleteWalletRow(btn){
 
 function addWallet(){
     const table = document.querySelector("#walletTable tbody");
-    const row = table.insertRow();
+    const row = table.insertRow(); // adds at bottom
     const id = db.collection("wallets").doc().id;
     row.dataset.id = id;
     row.innerHTML=`
