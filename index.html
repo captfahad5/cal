@@ -38,14 +38,14 @@ li { margin-bottom: 3px; display: flex; justify-content: space-between; align-it
 <tbody></tbody>
 </table>
 
-<button onclick="addWallet()">➕ Add New Wallet</button>
+<button id="addWalletBtn">➕ Add New Wallet</button>
 <h2>Total Balance: $<span id="totalBalance">0</span></h2>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
-import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
+import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, onSnapshot, getDoc } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
 
-// --- Your Firebase Config ---
+// --- Firebase Config ---
 const firebaseConfig = {
   apiKey: "AIzaSyAPgCWfTeRUebCCVeEwxnAXOWYX1dxwhZE",
   authDomain: "crypto-ledger-6d5fb.firebaseapp.com",
@@ -55,12 +55,12 @@ const firebaseConfig = {
   appId: "1:344600389752:web:aacb60ca86a397cd53658d"
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const walletsCol = collection(db, "wallets");
 
-// --- Add Wallet Row ---
+// --- Functions ---
+
 function addWalletRow(walletData, walletId){
     const tbody = document.getElementById('walletTable').getElementsByTagName('tbody')[0];
     const row = document.createElement('tr');
@@ -73,9 +73,9 @@ function addWalletRow(walletData, walletId){
         <td>
             <input type="number" placeholder="Amount">
             <input type="text" placeholder="Note">
-            <button onclick="handleTransfer(this,'add')">Add</button>
-            <button onclick="handleTransfer(this,'subtract')">Subtract</button>
-            <button class="del-row-btn" onclick="handleDeleteWallet(this)">DEL ROW</button>
+            <button class="add-btn">Add</button>
+            <button class="sub-btn">Subtract</button>
+            <button class="del-row-btn">DEL ROW</button>
         </td>
     `;
     tbody.appendChild(row);
@@ -112,6 +112,7 @@ function addWalletRow(walletData, walletId){
                 let bal=parseFloat(balanceCell.textContent);
                 bal += (type==='add'?newAmount:-newAmount);
                 balanceCell.textContent = bal.toFixed(2);
+
                 const walletDoc=doc(db,"wallets",walletId);
                 const updatedNotes=[...walletData.notes];
                 const noteIndex=updatedNotes.findIndex(n=>n.text===note.text);
@@ -141,14 +142,17 @@ function addWalletRow(walletData, walletId){
 
         notesList.appendChild(li);
     });
+
+    // Add button listeners for this row
+    row.querySelector('.add-btn').onclick = () => handleTransfer(row,'add');
+    row.querySelector('.sub-btn').onclick = () => handleTransfer(row,'subtract');
+    row.querySelector('.del-row-btn').onclick = () => handleDeleteWallet(row);
 }
 
 // --- Handle Transfer ---
-async function handleTransfer(btn,type){
-    const row=btn.parentElement.parentElement;
+async function handleTransfer(row,type){
     const walletId=row.dataset.id;
     const balanceCell=row.querySelector('.balance');
-    const notesList=row.querySelector('.notes ul');
     const amountInput=row.querySelector('input[type="number"]');
     const noteInput=row.querySelector('input[type="text"]');
 
@@ -157,7 +161,7 @@ async function handleTransfer(btn,type){
     if(isNaN(amount)||!noteText){alert('Enter amount and note');return;}
 
     const walletDoc=doc(db,"wallets",walletId);
-    const walletSnap=await walletDoc.get();
+    const walletSnap=await getDoc(walletDoc);
     const walletData=walletSnap.exists()?walletSnap.data():{notes:[],balance:0};
 
     let currentBalance=parseFloat(balanceCell.textContent);
@@ -176,9 +180,8 @@ async function handleTransfer(btn,type){
 }
 
 // --- Delete Wallet ---
-async function handleDeleteWallet(btn){
+async function handleDeleteWallet(row){
     if(!confirm('Delete this wallet?')) return;
-    const row=btn.parentElement.parentElement;
     const walletId=row.dataset.id;
     await deleteDoc(doc(db,"wallets",walletId));
     row.remove();
@@ -208,6 +211,9 @@ function calculateTotal(){
     });
     document.getElementById('totalBalance').textContent=total.toFixed(2);
 }
+
+// --- Make functions global for buttons ---
+window.addWallet = addWallet;
 </script>
 </body>
 </html>
