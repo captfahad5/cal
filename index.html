@@ -19,8 +19,6 @@
     .edit-btn { background-color: #2196F3; color: white; border: none; padding: 2px 5px; font-size: 12px; margin-left: 5px; }
     .del-btn { background-color: #f44336; color: white; border: none; padding: 2px 5px; font-size: 12px; margin-left: 5px; }
     .del-row-btn { background-color: #9c27b0; color: white; border: none; padding: 3px 7px; font-size: 12px; margin-left: 5px; }
-    .move-up-btn { background-color: #ff9800; color: white; border: none; padding: 2px 5px; font-size: 12px; margin-left: 5px; }
-    .move-down-btn { background-color: #607d8b; color: white; border: none; padding: 2px 5px; font-size: 12px; margin-left: 5px; }
     @keyframes bounce {
         0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
         40% { transform: translateY(-10px); }
@@ -114,18 +112,6 @@ function createEditButton(li, row){
     return editBtn;
 }
 
-function moveRowUp(btn){
-    const row = btn.parentElement.parentElement;
-    const prev = row.previousElementSibling;
-    if(prev) row.parentElement.insertBefore(row, prev);
-}
-
-function moveRowDown(btn){
-    const row = btn.parentElement.parentElement;
-    const next = row.nextElementSibling;
-    if(next) row.parentElement.insertBefore(next, row.nextElementSibling.nextElementSibling);
-}
-
 function calculateTotal(){
     let total = 0;
     document.querySelectorAll('.balance').forEach(cell=>{
@@ -154,13 +140,9 @@ function loadWalletsRealtime(){
                     <input type="text" placeholder="Note">
                     <button onclick="addTransfer(this,'add')">Add</button>
                     <button onclick="addTransfer(this,'subtract')">Subtract</button>
-                    <button class="move-up-btn">⬆</button>
-                    <button class="move-down-btn">⬇</button>
                     <button class="del-row-btn" onclick="deleteWalletRow(this)">DEL ROW</button>
                 </td>
             `;
-            row.querySelector('.move-up-btn').onclick = function(){ moveRowUp(this); };
-            row.querySelector('.move-down-btn').onclick = function(){ moveRowDown(this); };
 
             const notesList = row.querySelector('.notes ul');
             if(data.notes){
@@ -314,13 +296,9 @@ function addWallet(){
             <input type="text" placeholder="Note">
             <button onclick="addTransfer(this,'add')">Add</button>
             <button onclick="addTransfer(this,'subtract')">Subtract</button>
-            <button class="move-up-btn">⬆</button>
-            <button class="move-down-btn">⬇</button>
             <button class="del-row-btn" onclick="deleteWalletRow(this)">DEL ROW</button>
         </td>
     `;
-    row.querySelector('.move-up-btn').onclick = function(){ moveRowUp(this); };
-    row.querySelector('.move-down-btn').onclick = function(){ moveRowDown(this); };
 
     db.collection("wallets").doc(id).set({
         name: 'New Wallet',
