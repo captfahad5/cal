@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Crypto Wallet Tracker Ledger v8 - Firebase</title>
+<title>Crypto Wallet Tracker Ledger v9 - Firebase</title>
 <style>
     body { font-family: Arial, sans-serif; margin: 20px; background: #f0f2f5; }
     table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
@@ -39,7 +39,7 @@
 
 <div class="header-bounce">Made By Capt Fahad | Powered By AI</div>
 
-<h1>📊 Crypto Wallet Tracker Ledger v8 (Realtime)</h1>
+<h1>📊 Crypto Wallet Tracker Ledger v9 (Realtime)</h1>
 
 <table id="walletTable">
     <thead>
@@ -107,7 +107,7 @@ function moveRowUp(btn){
 function moveRowDown(btn){
     const row = btn.parentElement.parentElement;
     const next = row.nextElementSibling;
-    if(next) row.parentElement.insertBefore(next, row);
+    if(next) row.parentElement.insertBefore(next, row.nextElementSibling.nextElementSibling);
 }
 
 function calculateTotal(){
@@ -120,8 +120,9 @@ function calculateTotal(){
     document.getElementById('totalBalance').textContent = total.toFixed(2);
 }
 
+// Load wallets in order by createdAt timestamp
 function loadWalletsRealtime(){
-    db.collection("wallets").onSnapshot(snapshot=>{
+    db.collection("wallets").orderBy("createdAt").onSnapshot(snapshot=>{
         const tbody = document.querySelector("#walletTable tbody");
         tbody.innerHTML = "";
         snapshot.forEach(doc=>{
@@ -204,7 +205,7 @@ function saveAllWallets(){
         row.querySelectorAll("li").forEach(li=>{
             notes.push({ text: li.dataset.note, amounts: li.amounts || [] });
         });
-        db.collection("wallets").doc(id).set({ name, balance, currency, notes });
+        db.collection("wallets").doc(id).set({ name, balance, currency, notes, createdAt: row.dataset.createdAt || firebase.firestore.FieldValue.serverTimestamp() });
     });
 }
 
@@ -305,11 +306,13 @@ function addWallet(){
     `;
     row.querySelector('.move-up-btn').onclick = function(){ moveRowUp(this); };
     row.querySelector('.move-down-btn').onclick = function(){ moveRowDown(this); };
+
     db.collection("wallets").doc(id).set({
         name: 'New Wallet',
         balance: 0,
         currency: 'USDT',
-        notes: []
+        notes: [],
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     calculateTotal();
 }
