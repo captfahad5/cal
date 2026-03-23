@@ -60,6 +60,16 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
 
 <script>
+// ===== SIMPLE PASSWORD PROTECTION =====
+const APP_PASSWORD = "captai5"; // <-- your password
+let entered = prompt("Enter app password Capt:");
+if(entered !== APP_PASSWORD){
+    alert("Wrong password! Access denied.");
+    document.body.innerHTML = "<h2 style='color:red;text-align:center;margin-top:50px;'>Access Denied</h2>";
+    throw "Access Denied"; // stop further execution
+}
+
+// ===== FIREBASE CONFIG =====
 const firebaseConfig = {
   apiKey: "AIzaSyAPgCWfTeRUebCCVeEwxnAXOWYX1dxwhZE",
   authDomain: "crypto-ledger-6d5fb.firebaseapp.com",
@@ -72,37 +82,29 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
+// ===== HELPER FUNCTIONS =====
 function updateNoteDisplay(li){
     const amountSpan = li.querySelector('.note-amounts');
     amountSpan.textContent = li.amounts.join(' ');
 }
 
-// ===== PATCHED EDIT BUTTON: DEFAULT SUBTRACTION IF NO PREFIX =====
 function createEditButton(li, row){
     const editBtn = document.createElement('button');
     editBtn.textContent = 'Edit';
     editBtn.className = 'edit-btn';
-    editBtn.onclick = ()=>{
+    editBtn.onclick = ()=> {
         if(!li.amounts || li.amounts.length===0){ alert("No amounts to edit"); return; }
         const current = li.amounts.join(',');
         let input = prompt(`Current amounts: ${current}\n\nEdit comma-separated amounts (leave blank to cancel):`, current);
         if(input===null) return;
         const newAmounts = input.split(',').map(a=>a.trim()).filter(a=>a).map(a=>{
-            // ✅ default to subtraction if no + or -
             if(!/^[+-]/.test(a)) a = '-' + a;
             return a;
         });
-        // recalc wallet balance
         const balanceCell = row.querySelector('.balance');
         let total = parseFloat(balanceCell.textContent) || 0;
-        li.amounts.forEach(a=>{
-            const val=parseFloat(a.replace(/[+-]/,''));
-            total -= a.startsWith('+')?val:-val;
-        });
-        newAmounts.forEach(a=>{
-            const val=parseFloat(a.replace(/[+-]/,''));
-            total += a.startsWith('+')?val:-val;
-        });
+        li.amounts.forEach(a=>{ const val=parseFloat(a.replace(/[+-]/,'')); total -= a.startsWith('+')?val:-val; });
+        newAmounts.forEach(a=>{ const val=parseFloat(a.replace(/[+-]/,'')); total += a.startsWith('+')?val:-val; });
         balanceCell.textContent = total.toFixed(2);
         li.amounts = newAmounts;
         updateNoteDisplay(li);
@@ -122,6 +124,7 @@ function calculateTotal(){
     document.getElementById('totalBalance').textContent = total.toFixed(2);
 }
 
+// ===== WALLET FUNCTIONS =====
 function loadWalletsRealtime(){
     db.collection("wallets").orderBy("createdAt").onSnapshot(snapshot=>{
         const tbody = document.querySelector("#walletTable tbody");
@@ -150,7 +153,6 @@ function loadWalletsRealtime(){
                     const li = document.createElement('li');
                     li.dataset.note = note.text;
                     li.amounts = note.amounts || [];
-
                     const wrapper = document.createElement('span');
                     wrapper.className = 'note-text';
                     const amountSpan = document.createElement('span');
@@ -170,10 +172,7 @@ function loadWalletsRealtime(){
                     delBtn.onclick=()=>{
                         const balanceCell = row.querySelector('.balance');
                         let currentBalance = parseFloat(balanceCell.textContent) || 0;
-                        li.amounts.forEach(a=>{
-                            const val=parseFloat(a.replace(/[+-]/,''));
-                            currentBalance -= a.startsWith('+')?val:-val;
-                        });
+                        li.amounts.forEach(a=>{ const val=parseFloat(a.replace(/[+-]/,'')); currentBalance -= a.startsWith('+')?val:-val; });
                         balanceCell.textContent=currentBalance.toFixed(2);
                         li.remove();
                         calculateTotal();
@@ -310,6 +309,7 @@ function addWallet(){
     calculateTotal();
 }
 
+// ===== INITIAL LOAD =====
 loadWalletsRealtime();
 </script>
 
