@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Crypto Wallet Tracker Ledger v8</title>
+<title>Crypto Wallet Tracker Firebase</title>
 <style>
     body { font-family: Arial, sans-serif; margin: 20px; background: #f0f2f5; }
     table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
@@ -16,7 +16,7 @@
     .note-text { display: flex; }
     .note-amounts {
         font-weight: bold;
-        width: 150px;  /* fixed width for ledger alignment */
+        width: 150px;
         text-align: right;
         margin-right: 10px;
     }
@@ -28,7 +28,7 @@
 </head>
 <body>
 
-<h1>📊 Crypto Wallet Tracker Ledger v8</h1>
+<h1>📊 Crypto Wallet Tracker Firebase</h1>
 
 <table id="walletTable">
     <thead>
@@ -41,19 +41,7 @@
         </tr>
     </thead>
     <tbody>
-        <tr>
-            <td contenteditable="true">Off Wallet (FHS)</td>
-            <td class="balance" contenteditable="true">3000</td>
-            <td contenteditable="true">USDT</td>
-            <td class="notes"><ul></ul></td>
-            <td>
-                <input type="number" placeholder="Amount">
-                <input type="text" placeholder="Note">
-                <button onclick="addTransfer(this, 'add')">Add</button>
-                <button onclick="addTransfer(this, 'subtract')">Subtract</button>
-                <button class="del-row-btn" onclick="deleteWalletRow(this)">DEL ROW</button>
-            </td>
-        </tr>
+        <!-- Wallet rows added dynamically -->
     </tbody>
 </table>
 
@@ -61,150 +49,186 @@
 
 <h2>Total Balance: $<span id="totalBalance">0</span></h2>
 
-<script>
-// Add transfer
-function addTransfer(btn, type) {
-    const row = btn.parentElement.parentElement;
-    const balanceCell = row.querySelector('.balance');
+<!-- Firebase SDK -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-app.js";
+import { getFirestore, collection, doc, addDoc, setDoc, updateDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.4.0/firebase-firestore.js";
+
+// --- Your Firebase config ---
+const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT.firebaseapp.com",
+    projectId: "YOUR_PROJECT",
+    storageBucket: "YOUR_PROJECT.appspot.com",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId: "YOUR_APP_ID"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+const walletsCol = collection(db, "wallets");
+
+// --- Functions to render wallets ---
+function addWalletRow(walletData, walletId) {
+    const tbody = document.getElementById('walletTable').getElementsByTagName('tbody')[0];
+    const row = document.createElement('tr');
+    row.dataset.id = walletId;
+
+    row.innerHTML = `
+        <td contenteditable="true">${walletData.name}</td>
+        <td class="balance">${walletData.balance.toFixed(2)}</td>
+        <td contenteditable="true">${walletData.currency}</td>
+        <td class="notes"><ul></ul></td>
+        <td>
+            <input type="number" placeholder="Amount">
+            <input type="text" placeholder="Note">
+            <button onclick="handleTransfer(this, 'add')">Add</button>
+            <button onclick="handleTransfer(this, 'subtract')">Subtract</button>
+            <button class="del-row-btn" onclick="handleDeleteWallet(this)">DEL ROW</button>
+        </td>
+    `;
+
+    tbody.appendChild(row);
+
+    // Render existing notes
     const notesList = row.querySelector('.notes ul');
-
-    const amountInput = row.querySelector('input[type="number"]');
-    const noteInput = row.querySelector('input[type="text"]');
-
-    const amount = parseFloat(amountInput.value);
-    const noteText = noteInput.value.trim();
-
-    if (isNaN(amount) || !noteText) {
-        alert('Enter both a valid amount and note.');
-        return;
-    }
-
-    // Update balance
-    let currentBalance = parseFloat(balanceCell.textContent);
-    currentBalance += (type === 'add') ? amount : -amount;
-    balanceCell.textContent = currentBalance.toFixed(2);
-
-    // Check if a note with same description already exists
-    let existingLi = null;
-    notesList.querySelectorAll('li').forEach(li => {
-        if (li.dataset.note === noteText) existingLi = li;
-    });
-
-    if (existingLi) {
-        // Append new amount to existing note
-        existingLi.amounts.push((type === 'add' ? '+' : '-') + amount);
-        updateNoteDisplay(existingLi);
-    } else {
-        // Create new note
+    walletData.notes.forEach(note => {
         const li = document.createElement('li');
-        li.dataset.note = noteText;
-        li.amounts = [(type === 'add' ? '+' : '-') + amount]; // store all amounts
+        li.dataset.note = note.text;
+        li.amounts = [...note.amounts];
 
-        // Note wrapper
         const noteWrapper = document.createElement('span');
         noteWrapper.className = 'note-text';
-
         const amountSpan = document.createElement('span');
         amountSpan.className = 'note-amounts';
         amountSpan.textContent = li.amounts.join(' ');
-
         const noteDescSpan = document.createElement('span');
         noteDescSpan.className = 'note-description';
-        noteDescSpan.textContent = `| ${noteText}`;
-
+        noteDescSpan.textContent = `| ${note.text}`;
         noteWrapper.appendChild(amountSpan);
         noteWrapper.appendChild(noteDescSpan);
         li.appendChild(noteWrapper);
 
-        // Edit button
+        // Edit
         const editBtn = document.createElement('button');
         editBtn.textContent = 'Edit';
         editBtn.className = 'edit-btn';
-        editBtn.onclick = () => {
+        editBtn.onclick = async () => {
             const newAmount = parseFloat(prompt('Enter amount to add/subtract:'));
             if (!isNaN(newAmount)) {
-                const type2 = confirm('Click OK for Add, Cancel for Subtract') ? 'add' : 'subtract';
-                li.amounts.push((type2 === 'add' ? '+' : '-') + newAmount);
-                updateNoteDisplay(li);
-                balanceCell.textContent = (parseFloat(balanceCell.textContent) + (type2==='add'?newAmount:-newAmount)).toFixed(2);
+                const type = confirm('OK for Add, Cancel for Subtract') ? 'add' : 'subtract';
+                li.amounts.push((type==='add'?'+':'-') + newAmount);
+                amountSpan.textContent = li.amounts.join(' ');
+
+                // Update balance and Firestore
+                const balanceCell = row.querySelector('.balance');
+                let bal = parseFloat(balanceCell.textContent);
+                bal += (type==='add'?newAmount:-newAmount);
+                balanceCell.textContent = bal.toFixed(2);
+                const walletDoc = doc(db, "wallets", walletId);
+                const updatedNotes = [...walletData.notes];
+                const noteIndex = updatedNotes.findIndex(n => n.text===note.text);
+                updatedNotes[noteIndex].amounts = li.amounts;
+                await updateDoc(walletDoc, { notes: updatedNotes, balance: bal });
                 calculateTotal();
             }
         };
         li.appendChild(editBtn);
 
-        // DEL button
+        // DEL note
         const delBtn = document.createElement('button');
         delBtn.textContent = 'DEL';
         delBtn.className = 'del-btn';
-        delBtn.onclick = () => {
+        delBtn.onclick = async () => {
+            const balanceCell = row.querySelector('.balance');
             li.amounts.forEach(a => {
-                const sign = a[0];
-                const val = parseFloat(a.slice(1));
+                const sign = a[0], val = parseFloat(a.slice(1));
                 balanceCell.textContent = (parseFloat(balanceCell.textContent) - (sign==='+'?val:-val)).toFixed(2);
             });
             li.remove();
+            const walletDoc = doc(db, "wallets", walletId);
+            const updatedNotes = walletData.notes.filter(n => n.text !== note.text);
+            await updateDoc(walletDoc, { notes: updatedNotes, balance: parseFloat(balanceCell.textContent) });
             calculateTotal();
         };
         li.appendChild(delBtn);
 
         notesList.appendChild(li);
-    }
+    });
+}
 
-    amountInput.value = '';
-    noteInput.value = '';
+// --- Handle Transfer (Add/Subtract) ---
+async function handleTransfer(btn, type) {
+    const row = btn.parentElement.parentElement;
+    const walletId = row.dataset.id;
+    const balanceCell = row.querySelector('.balance');
+    const notesList = row.querySelector('.notes ul');
+    const amountInput = row.querySelector('input[type="number"]');
+    const noteInput = row.querySelector('input[type="text"]');
+
+    const amount = parseFloat(amountInput.value);
+    const noteText = noteInput.value.trim();
+    if (isNaN(amount) || !noteText) { alert('Enter amount and note'); return; }
+
+    const walletDoc = doc(db, "wallets", walletId);
+    const walletSnap = await walletDoc.get();
+    const walletData = walletSnap.exists() ? walletSnap.data() : { notes: [], balance: 0 };
+
+    // Update balance
+    let currentBalance = parseFloat(balanceCell.textContent);
+    currentBalance += (type==='add'?amount:-amount);
+    balanceCell.textContent = currentBalance.toFixed(2);
+
+    // Add note
+    const notesArr = [...walletData.notes];
+    const existingNote = notesArr.find(n => n.text===noteText);
+    if (existingNote) {
+        existingNote.amounts.push((type==='add'?'+':'-')+amount);
+    } else {
+        notesArr.push({ text: noteText, amounts: [(type==='add'?'+':'-')+amount] });
+    }
+    await updateDoc(walletDoc, { notes: notesArr, balance: currentBalance });
+
+    amountInput.value = ''; noteInput.value = '';
+}
+
+// --- Delete Wallet ---
+async function handleDeleteWallet(btn) {
+    if (!confirm('Delete this wallet?')) return;
+    const row = btn.parentElement.parentElement;
+    const walletId = row.dataset.id;
+    await deleteDoc(doc(db, "wallets", walletId));
+    row.remove();
     calculateTotal();
 }
 
-// Update note display after editing
-function updateNoteDisplay(li){
-    const amountSpan = li.querySelector('.note-amounts');
-    amountSpan.textContent = li.amounts.join(' ');
+// --- Add new wallet ---
+async function addWallet() {
+    const newWallet = { name:'New Wallet', balance:0, currency:'USDT', notes:[] };
+    await addDoc(walletsCol, newWallet);
 }
 
-// Delete entire wallet row
-function deleteWalletRow(btn) {
-    if (confirm('Are you sure you want to delete this wallet?')) {
-        const row = btn.parentElement.parentElement;
-        const balanceCell = row.querySelector('.balance');
-        let val = parseFloat(balanceCell.textContent);
-        if (!isNaN(val)) {
-            document.getElementById('totalBalance').textContent =
-                (parseFloat(document.getElementById('totalBalance').textContent) - val).toFixed(2);
-        }
-        row.remove();
-    }
-}
+// --- Realtime listener ---
+onSnapshot(walletsCol, (snapshot) => {
+    const tbody = document.getElementById('walletTable').getElementsByTagName('tbody')[0];
+    tbody.innerHTML = '';
+    snapshot.forEach(docSnap => {
+        addWalletRow(docSnap.data(), docSnap.id);
+    });
+    calculateTotal();
+});
 
-// Calculate total balance
+// --- Total balance ---
 function calculateTotal() {
     let total = 0;
-    document.querySelectorAll('.balance').forEach(cell => {
-        let val = parseFloat(cell.textContent);
-        if (!isNaN(val)) total += val;
+    document.querySelectorAll('.balance').forEach(cell=>{
+        let val=parseFloat(cell.textContent);
+        if(!isNaN(val)) total+=val;
     });
     document.getElementById('totalBalance').textContent = total.toFixed(2);
 }
 
-// Add new wallet
-function addWallet() {
-    const table = document.getElementById('walletTable').getElementsByTagName('tbody')[0];
-    const row = table.insertRow();
-    row.innerHTML = `
-        <td contenteditable="true">New Wallet</td>
-        <td class="balance" contenteditable="true">0</td>
-        <td contenteditable="true">USDT</td>
-        <td class="notes"><ul></ul></td>
-        <td>
-            <input type="number" placeholder="Amount">
-            <input type="text" placeholder="Note">
-            <button onclick="addTransfer(this, 'add')">Add</button>
-            <button onclick="addTransfer(this, 'subtract')">Subtract</button>
-            <button class="del-row-btn" onclick="deleteWalletRow(this)">DEL ROW</button>
-        </td>
-    `;
-}
-
-calculateTotal();
 </script>
 
 </body>
