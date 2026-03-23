@@ -1,338 +1,43 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Crypto Wallet Tracker Ledger v10 - Firebase</title>
-<style>
-    body { font-family: Arial, sans-serif; margin: 20px; background: #f0f2f5; }
-    table { border-collapse: collapse; width: 100%; margin-bottom: 20px; }
-    th, td { border: 1px solid #ccc; padding: 10px; text-align: left; vertical-align: top; }
-    th { background-color: #4CAF50; color: white; font-weight: bold; }
-    input { width: 100px; }
-    button { cursor: pointer; }
-    ul { margin: 0; padding-left: 20px; list-style-type: none; }
-    li { margin-bottom: 3px; display: flex; justify-content: space-between; align-items: center; }
-    .note-text { display: flex; flex: 1; }
-    .note-amounts { font-weight: bold; width: 150px; text-align: right; margin-right: 10px; }
-    .note-description { flex: 1; }
-    .edit-btn { background-color: #2196F3; color: white; border: none; padding: 2px 5px; font-size: 12px; margin-left: 5px; }
-    .del-btn { background-color: #f44336; color: white; border: none; padding: 2px 5px; font-size: 12px; margin-left: 5px; }
-    .del-row-btn { background-color: #9c27b0; color: white; border: none; padding: 3px 7px; font-size: 12px; margin-left: 5px; }
-    .move-up-btn { background-color: #ff9800; color: white; border: none; padding: 2px 5px; font-size: 12px; margin-left: 5px; }
-    .move-down-btn { background-color: #607d8b; color: white; border: none; padding: 2px 5px; font-size: 12px; margin-left: 5px; }
-    @keyframes bounce {
-        0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
-        40% { transform: translateY(-10px); }
-        60% { transform: translateY(-5px); }
-    }
-    .header-bounce { 
-        font-size: 16px; 
-        font-weight: bold; 
-        text-align: center; 
-        margin-bottom: 20px; 
-        animation: bounce 2s infinite; 
-    }
-</style>
-</head>
-<body>
-
-<div class="header-bounce">Made By Capt Fahad | Powered By AI</div>
-
-<h1>📊 Crypto Wallet Tracker Ledger v10 (Realtime)</h1>
-
-<table id="walletTable">
-    <thead>
-        <tr>
-            <th>Wallet / Account</th>
-            <th>Balance</th>
-            <th>Currency</th>
-            <th>Notes / Transfers</th>
-            <th>Transfer</th>
-        </tr>
-    </thead>
-    <tbody></tbody>
-</table>
-
-<button onclick="addWallet()">➕ Add New Wallet</button>
-
-<h2>Total Balance: $<span id="totalBalance">0</span></h2>
-
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-
-<script>
-const firebaseConfig = {
-  apiKey: "AIzaSyAPgCWfTeRUebCCVeEwxnAXOWYX1dxwhZE",
-  authDomain: "crypto-ledger-6d5fb.firebaseapp.com",
-  projectId: "crypto-ledger-6d5fb",
-  storageBucket: "crypto-ledger-6d5fb.firebasestorage.app",
-  messagingSenderId: "344600389752",
-  appId: "1:344600389752:web:aacb60ca86a397cd53658d"
-};
-
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
-
-function updateNoteDisplay(li){
-    const amountSpan = li.querySelector('.note-amounts');
-    amountSpan.textContent = li.amounts.join(' ');
-}
-
-// ===== NEW EDIT BUTTON: ADD/EDIT/DELETE AMOUNTS =====
 function createEditButton(li, row){
     const editBtn = document.createElement('button');
     editBtn.textContent = 'Edit';
     editBtn.className = 'edit-btn';
     editBtn.onclick = ()=>{
-        if(!li.amounts || li.amounts.length===0){ alert("No amounts to edit"); return; }
-        const current = li.amounts.join(',');
-        let input = prompt(`Current amounts: ${current}\n\nEdit comma-separated amounts (leave blank to cancel):`, current);
-        if(input===null) return;
-        const newAmounts = input.split(',').map(a=>a.trim()).filter(a=>a).map(a=>{
-            if(!/^[+-]/.test(a)) a=(parseFloat(a)>=0?'+':'')+a;
-            return a;
-        });
-        // recalc wallet balance
-        const balanceCell = row.querySelector('.balance');
-        let total = parseFloat(balanceCell.textContent) || 0;
-        li.amounts.forEach(a=>{
-            const val=parseFloat(a.replace(/[+-]/,''));
-            total -= a.startsWith('+')?val:-val;
-        });
-        newAmounts.forEach(a=>{
-            const val=parseFloat(a.replace(/[+-]/,''));
-            total += a.startsWith('+')?val:-val;
-        });
-        balanceCell.textContent = total.toFixed(2);
-        li.amounts = newAmounts;
+
+        // Ask for new amount (text input)
+        let input = prompt('Enter amount (prefix + for addition, default is subtraction):', '');
+        if(input === null) return; // cancel pressed
+
+        input = input.trim();
+        if(input === '') return; // empty input
+
+        let type2 = '-'; // default is subtraction
+        let numStr = input;
+
+        // If input starts with +, treat as addition
+        if(input.startsWith('+')){
+            type2 = '+';
+            numStr = input.slice(1).trim();
+        }
+
+        const newAmount = parseFloat(numStr);
+        if(isNaN(newAmount)){
+            alert('Invalid number!');
+            return;
+        }
+
+        // Push the new amount with proper sign
+        li.amounts.push(type2 + newAmount);
         updateNoteDisplay(li);
+
+        // Update the wallet balance
+        const balanceCell = row.querySelector('.balance');
+        let currentBalance = parseFloat(balanceCell.textContent) || 0;
+        currentBalance += (type2 === '+' ? newAmount : -newAmount);
+        balanceCell.textContent = currentBalance.toFixed(2);
+
         calculateTotal();
         saveAllWallets();
     };
     return editBtn;
 }
-
-function moveRowUp(btn){
-    const row = btn.parentElement.parentElement;
-    const prev = row.previousElementSibling;
-    if(prev) row.parentElement.insertBefore(row, prev);
-}
-
-function moveRowDown(btn){
-    const row = btn.parentElement.parentElement;
-    const next = row.nextElementSibling;
-    if(next) row.parentElement.insertBefore(next, row.nextElementSibling.nextElementSibling);
-}
-
-function calculateTotal(){
-    let total = 0;
-    document.querySelectorAll('.balance').forEach(cell=>{
-        let val = parseFloat(cell.textContent);
-        if(isNaN(val)) val = 0;
-        total += val;
-    });
-    document.getElementById('totalBalance').textContent = total.toFixed(2);
-}
-
-function loadWalletsRealtime(){
-    db.collection("wallets").orderBy("createdAt").onSnapshot(snapshot=>{
-        const tbody = document.querySelector("#walletTable tbody");
-        tbody.innerHTML = "";
-        snapshot.forEach(doc=>{
-            const data = doc.data();
-            const row = tbody.insertRow();
-            row.dataset.id = doc.id;
-            row.innerHTML = `
-                <td contenteditable="true">${data.name}</td>
-                <td class="balance" contenteditable="true">${data.balance}</td>
-                <td contenteditable="true">${data.currency}</td>
-                <td class="notes"><ul></ul></td>
-                <td>
-                    <input type="number" placeholder="Amount">
-                    <input type="text" placeholder="Note">
-                    <button onclick="addTransfer(this,'add')">Add</button>
-                    <button onclick="addTransfer(this,'subtract')">Subtract</button>
-                    <button class="move-up-btn">⬆</button>
-                    <button class="move-down-btn">⬇</button>
-                    <button class="del-row-btn" onclick="deleteWalletRow(this)">DEL ROW</button>
-                </td>
-            `;
-            row.querySelector('.move-up-btn').onclick = function(){ moveRowUp(this); };
-            row.querySelector('.move-down-btn').onclick = function(){ moveRowDown(this); };
-
-            const notesList = row.querySelector('.notes ul');
-            if(data.notes){
-                data.notes.forEach(note=>{
-                    const li = document.createElement('li');
-                    li.dataset.note = note.text;
-                    li.amounts = note.amounts || [];
-
-                    const wrapper = document.createElement('span');
-                    wrapper.className = 'note-text';
-                    const amountSpan = document.createElement('span');
-                    amountSpan.className = 'note-amounts';
-                    amountSpan.textContent = li.amounts.join(' ');
-                    const descSpan = document.createElement('span');
-                    descSpan.className = 'note-description';
-                    descSpan.textContent = `| ${note.text}`;
-                    wrapper.appendChild(amountSpan);
-                    wrapper.appendChild(descSpan);
-                    li.appendChild(wrapper);
-
-                    const editBtn = createEditButton(li,row);
-                    const delBtn = document.createElement('button');
-                    delBtn.textContent='DEL';
-                    delBtn.className='del-btn';
-                    delBtn.onclick=()=>{
-                        const balanceCell = row.querySelector('.balance');
-                        let currentBalance = parseFloat(balanceCell.textContent) || 0;
-                        li.amounts.forEach(a=>{
-                            const val=parseFloat(a.replace(/[+-]/,''));
-                            currentBalance -= a.startsWith('+')?val:-val;
-                        });
-                        balanceCell.textContent=currentBalance.toFixed(2);
-                        li.remove();
-                        calculateTotal();
-                        saveAllWallets();
-                    };
-
-                    li.appendChild(editBtn);
-                    li.appendChild(delBtn);
-                    notesList.appendChild(li);
-                });
-            }
-        });
-        calculateTotal();
-    });
-}
-
-function saveAllWallets(){
-    const rows = document.querySelectorAll("#walletTable tbody tr");
-    rows.forEach(row=>{
-        const id = row.dataset.id || db.collection("wallets").doc().id;
-        row.dataset.id = id;
-        const name = row.cells[0].textContent;
-        const balance = parseFloat(row.querySelector('.balance').textContent) || 0;
-        const currency = row.cells[2].textContent;
-        const notes = [];
-        row.querySelectorAll("li").forEach(li=>{
-            notes.push({ text: li.dataset.note, amounts: li.amounts || [] });
-        });
-        db.collection("wallets").doc(id).set({ name, balance, currency, notes, createdAt: row.dataset.createdAt || firebase.firestore.FieldValue.serverTimestamp() });
-    });
-}
-
-function addTransfer(btn, type){
-    const row = btn.parentElement.parentElement;
-    const balanceCell = row.querySelector('.balance');
-    const notesList = row.querySelector('.notes ul');
-    const amountInput = row.querySelector('input[type="number"]');
-    const noteInput = row.querySelector('input[type="text"]');
-
-    const amount = parseFloat(amountInput.value);
-    const noteText = noteInput.value.trim();
-    if(isNaN(amount) || !noteText){ alert('Enter both a valid amount and note.'); return; }
-
-    let currentBalance = parseFloat(balanceCell.textContent) || 0;
-    currentBalance += type === 'add' ? amount : -amount;
-    balanceCell.textContent = currentBalance.toFixed(2);
-
-    let existingLi = null;
-    notesList.querySelectorAll('li').forEach(li=>{
-        if(li.dataset.note === noteText) existingLi = li;
-    });
-
-    if(existingLi){
-        existingLi.amounts.push((type==='add'?'+':'-')+amount);
-        updateNoteDisplay(existingLi);
-    } else {
-        const li = document.createElement('li');
-        li.dataset.note = noteText;
-        li.amounts = [(type==='add'?'+':'-')+amount];
-
-        const wrapper = document.createElement('span');
-        wrapper.className='note-text';
-        const amountSpan = document.createElement('span');
-        amountSpan.className='note-amounts';
-        amountSpan.textContent = li.amounts.join(' ');
-        const descSpan = document.createElement('span');
-        descSpan.className='note-description';
-        descSpan.textContent=`| ${noteText}`;
-        wrapper.appendChild(amountSpan);
-        wrapper.appendChild(descSpan);
-        li.appendChild(wrapper);
-
-        const editBtn = createEditButton(li,row);
-        const delBtn = document.createElement('button');
-        delBtn.textContent='DEL';
-        delBtn.className='del-btn';
-        delBtn.onclick=()=>{
-            let bal = parseFloat(balanceCell.textContent) || 0;
-            li.amounts.forEach(a=>{
-                const val=parseFloat(a.replace(/[+-]/,'')); 
-                bal -= a.startsWith('+')?val:-val;
-            });
-            balanceCell.textContent = bal.toFixed(2);
-            li.remove();
-            calculateTotal();
-            saveAllWallets();
-        };
-
-        li.appendChild(editBtn);
-        li.appendChild(delBtn);
-        notesList.appendChild(li);
-    }
-
-    amountInput.value=''; noteInput.value='';
-    calculateTotal(); saveAllWallets();
-}
-
-function deleteWalletRow(btn){
-    if(confirm('Delete this wallet?')){
-        const row = btn.parentElement.parentElement;
-        const id = row.dataset.id;
-        if(id) db.collection("wallets").doc(id).delete();
-        row.remove();
-        calculateTotal();
-    }
-}
-
-function addWallet(){
-    const table = document.querySelector("#walletTable tbody");
-    const row = table.insertRow(); // adds at bottom
-    const id = db.collection("wallets").doc().id;
-    row.dataset.id = id;
-    row.innerHTML=`
-        <td contenteditable="true">New Wallet</td>
-        <td class="balance" contenteditable="true">0</td>
-        <td contenteditable="true">USDT</td>
-        <td class="notes"><ul></ul></td>
-        <td>
-            <input type="number" placeholder="Amount">
-            <input type="text" placeholder="Note">
-            <button onclick="addTransfer(this,'add')">Add</button>
-            <button onclick="addTransfer(this,'subtract')">Subtract</button>
-            <button class="move-up-btn">⬆</button>
-            <button class="move-down-btn">⬇</button>
-            <button class="del-row-btn" onclick="deleteWalletRow(this)">DEL ROW</button>
-        </td>
-    `;
-    row.querySelector('.move-up-btn').onclick = function(){ moveRowUp(this); };
-    row.querySelector('.move-down-btn').onclick = function(){ moveRowDown(this); };
-
-    db.collection("wallets").doc(id).set({
-        name: 'New Wallet',
-        balance: 0,
-        currency: 'USDT',
-        notes: [],
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    calculateTotal();
-}
-
-loadWalletsRealtime();
-</script>
-
-</body>
-</html>
