@@ -114,7 +114,47 @@ function loadWalletsRealtime(){
                     wrapper.appendChild(descSpan);
                     li.appendChild(wrapper);
 
-                    const delBtn = document.createElement('button');
+                    const editBtn = document.createElement('button');
+                    editBtn.textContent = 'Edit';
+                    editBtn.className = 'edit-btn';
+                    editBtn.onclick = ()=>{
+                        const newAmount = parseFloat(prompt('Enter amount to add/subtract:'));
+                        if(!isNaN(newAmount)){
+                            const type2 = confirm('Click OK for Add, Cancel for Subtract') ? 'add' : 'subtract';
+                            li.amounts.push((type2 === 'add' ? '+' : '-') + newAmount);
+                            amountSpan.textContent = li.amounts.join(' ');
+
+                            const balanceCell = row.querySelector('.balance');
+                            balanceCell.textContent = (parseFloat(balanceCell.textContent) + (type2==='add'?newAmount:-newAmount)).toFixed(2);
+
+                            calculateTotal();
+                            saveAllWallets();
+                        }
+                    };
+
+                    li.appendChild(editBtn);
+
+                    const editBtn = document.createElement('button');
+        editBtn.textContent = 'Edit';
+        editBtn.className = 'edit-btn';
+        editBtn.onclick = ()=>{
+            const newAmount = parseFloat(prompt('Enter amount to add/subtract:'));
+            if(!isNaN(newAmount)){
+                const type2 = confirm('Click OK for Add, Cancel for Subtract') ? 'add' : 'subtract';
+                li.amounts.push((type2 === 'add' ? '+' : '-') + newAmount);
+                amountSpan.textContent = li.amounts.join(' ');
+
+                const balanceCell = row.querySelector('.balance');
+                balanceCell.textContent = (parseFloat(balanceCell.textContent) + (type2==='add'?newAmount:-newAmount)).toFixed(2);
+
+                calculateTotal();
+                saveAllWallets();
+            }
+        };
+
+        li.appendChild(editBtn);
+
+        const delBtn = document.createElement('button');
                     delBtn.textContent = 'DEL';
                     delBtn.className = 'del-btn';
                     delBtn.onclick = ()=>{
@@ -210,6 +250,26 @@ function addTransfer(btn, type){
         wrapper.appendChild(amountSpan);
         wrapper.appendChild(descSpan);
         li.appendChild(wrapper);
+
+        const editBtn = document.createElement('button');
+        editBtn.textContent = 'Edit';
+        editBtn.className = 'edit-btn';
+        editBtn.onclick = ()=>{
+            const newAmount = parseFloat(prompt('Enter amount to add/subtract:'));
+            if(!isNaN(newAmount)){
+                const type2 = confirm('Click OK for Add, Cancel for Subtract') ? 'add' : 'subtract';
+                li.amounts.push((type2 === 'add' ? '+' : '-') + newAmount);
+                amountSpan.textContent = li.amounts.join(' ');
+
+                const balanceCell = row.querySelector('.balance');
+                balanceCell.textContent = (parseFloat(balanceCell.textContent) + (type2==='add'?newAmount:-newAmount)).toFixed(2);
+
+                calculateTotal();
+                saveAllWallets();
+            }
+        };
+
+        li.appendChild(editBtn);
 
         const delBtn = document.createElement('button');
         delBtn.textContent = 'DEL';
