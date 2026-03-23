@@ -47,13 +47,11 @@
 
 <h2>Total Balance: $<span id="totalBalance">0</span></h2>
 
-<!-- Firebase v8 compat (simple + stable for GitHub Pages) -->
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
 
 <script>
 
-// Firebase config
 const firebaseConfig = {
   apiKey: "AIzaSyAPgCWfTeRUebCCVeEwxnAXOWYX1dxwhZE",
   authDomain: "crypto-ledger-6d5fb.firebaseapp.com",
@@ -66,15 +64,68 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
 
-// Realtime load
+function updateNoteDisplay(li){
+    const amountSpan = li.querySelector('.note-amounts');
+    amountSpan.textContent = li.amounts.join(' ');
+}
+
+function createEditButton(li, row){
+
+    const editBtn = document.createElement('button');
+    editBtn.textContent = 'Edit';
+    editBtn.className = 'edit-btn';
+
+    editBtn.onclick = ()=>{
+
+        const newAmount = parseFloat(prompt('Enter amount:'));
+
+        if(!isNaN(newAmount)){
+
+            const type2 =
+                confirm('OK = Add, Cancel = Subtract')
+                ? 'add'
+                : 'subtract';
+
+            li.amounts.push(
+                (type2 === 'add' ? '+' : '-') + newAmount
+            );
+
+            updateNoteDisplay(li);
+
+            const balanceCell =
+                row.querySelector('.balance');
+
+            balanceCell.textContent = (
+                parseFloat(balanceCell.textContent) +
+                (type2 === 'add'
+                    ? newAmount
+                    : -newAmount)
+            ).toFixed(2);
+
+            calculateTotal();
+            saveAllWallets();
+        }
+    };
+
+    return editBtn;
+}
+
 function loadWalletsRealtime(){
+
     db.collection("wallets").onSnapshot(snapshot => {
-        const tbody = document.querySelector("#walletTable tbody");
+
+        const tbody =
+            document.querySelector("#walletTable tbody");
+
         tbody.innerHTML = "";
 
         snapshot.forEach(doc => {
+
             const data = doc.data();
-            const row = tbody.insertRow();
+
+            const row =
+                tbody.insertRow();
+
             row.dataset.id = doc.id;
 
             row.innerHTML = `
@@ -91,196 +142,267 @@ function loadWalletsRealtime(){
                 </td>
             `;
 
-            const notesList = row.querySelector('.notes ul');
+            const notesList =
+                row.querySelector('.notes ul');
 
             if(data.notes){
+
                 data.notes.forEach(note=>{
-                    const li = document.createElement('li');
+
+                    const li =
+                        document.createElement('li');
+
                     li.dataset.note = note.text;
-                    li.amounts = note.amounts || [];
 
-                    const wrapper = document.createElement('span');
-                    wrapper.className = 'note-text';
+                    li.amounts =
+                        note.amounts || [];
 
-                    const amountSpan = document.createElement('span');
-                    amountSpan.className = 'note-amounts';
-                    amountSpan.textContent = li.amounts.join(' ');
+                    const wrapper =
+                        document.createElement('span');
 
-                    const descSpan = document.createElement('span');
-                    descSpan.className = 'note-description';
-                    descSpan.textContent = `| ${note.text}`;
+                    wrapper.className =
+                        'note-text';
+
+                    const amountSpan =
+                        document.createElement('span');
+
+                    amountSpan.className =
+                        'note-amounts';
+
+                    amountSpan.textContent =
+                        li.amounts.join(' ');
+
+                    const descSpan =
+                        document.createElement('span');
+
+                    descSpan.className =
+                        'note-description';
+
+                    descSpan.textContent =
+                        `| ${note.text}`;
 
                     wrapper.appendChild(amountSpan);
                     wrapper.appendChild(descSpan);
+
                     li.appendChild(wrapper);
 
-                    const editBtn = document.createElement('button');
-                    editBtn.textContent = 'Edit';
-                    editBtn.className = 'edit-btn';
-                    editBtn.onclick = ()=>{
-                        const newAmount = parseFloat(prompt('Enter amount to add/subtract:'));
-                        if(!isNaN(newAmount)){
-                            const type2 = confirm('Click OK for Add, Cancel for Subtract') ? 'add' : 'subtract';
-                            li.amounts.push((type2 === 'add' ? '+' : '-') + newAmount);
-                            amountSpan.textContent = li.amounts.join(' ');
+                    li.appendChild(
+                        createEditButton(li, row)
+                    );
 
-                            const balanceCell = row.querySelector('.balance');
-                            balanceCell.textContent = (parseFloat(balanceCell.textContent) + (type2==='add'?newAmount:-newAmount)).toFixed(2);
+                    const delBtn =
+                        document.createElement('button');
 
-                            calculateTotal();
-                            saveAllWallets();
-                        }
-                    };
-
-                    li.appendChild(editBtn);
-
-                    const editBtn = document.createElement('button');
-        editBtn.textContent = 'Edit';
-        editBtn.className = 'edit-btn';
-        editBtn.onclick = ()=>{
-            const newAmount = parseFloat(prompt('Enter amount to add/subtract:'));
-            if(!isNaN(newAmount)){
-                const type2 = confirm('Click OK for Add, Cancel for Subtract') ? 'add' : 'subtract';
-                li.amounts.push((type2 === 'add' ? '+' : '-') + newAmount);
-                amountSpan.textContent = li.amounts.join(' ');
-
-                const balanceCell = row.querySelector('.balance');
-                balanceCell.textContent = (parseFloat(balanceCell.textContent) + (type2==='add'?newAmount:-newAmount)).toFixed(2);
-
-                calculateTotal();
-                saveAllWallets();
-            }
-        };
-
-        li.appendChild(editBtn);
-
-        const delBtn = document.createElement('button');
                     delBtn.textContent = 'DEL';
                     delBtn.className = 'del-btn';
+
                     delBtn.onclick = ()=>{
                         li.remove();
                         saveAllWallets();
                     };
 
                     li.appendChild(delBtn);
+
                     notesList.appendChild(li);
+
                 });
             }
         });
 
         calculateTotal();
+
     });
 }
 
-// Save all wallets
 function saveAllWallets(){
-    const rows = document.querySelectorAll("#walletTable tbody tr");
+
+    const rows =
+        document.querySelectorAll(
+            "#walletTable tbody tr"
+        );
 
     rows.forEach(row=>{
-        const id = row.dataset.id || db.collection("wallets").doc().id;
+
+        const id =
+            row.dataset.id ||
+            db.collection("wallets").doc().id;
+
         row.dataset.id = id;
 
-        const name = row.cells[0].textContent;
-        const balance = parseFloat(row.querySelector('.balance').textContent) || 0;
-        const currency = row.cells[2].textContent;
+        const name =
+            row.cells[0].textContent;
+
+        const balance =
+            parseFloat(
+                row.querySelector('.balance')
+                    .textContent
+            ) || 0;
+
+        const currency =
+            row.cells[2].textContent;
 
         const notes = [];
 
-        row.querySelectorAll("li").forEach(li=>{
-            notes.push({
-                text: li.dataset.note,
-                amounts: li.amounts || []
-            });
-        });
+        row.querySelectorAll("li")
+            .forEach(li=>{
 
-        db.collection("wallets").doc(id).set({
-            name,
-            balance,
-            currency,
-            notes
-        });
+                notes.push({
+                    text: li.dataset.note,
+                    amounts: li.amounts || []
+                });
+
+            });
+
+        db.collection("wallets")
+            .doc(id)
+            .set({
+                name,
+                balance,
+                currency,
+                notes
+            });
+
     });
 }
 
-// Add transfer
 function addTransfer(btn, type){
-    const row = btn.parentElement.parentElement;
-    const balanceCell = row.querySelector('.balance');
-    const notesList = row.querySelector('.notes ul');
 
-    const amountInput = row.querySelector('input[type="number"]');
-    const noteInput = row.querySelector('input[type="text"]');
+    const row =
+        btn.parentElement.parentElement;
 
-    const amount = parseFloat(amountInput.value);
-    const noteText = noteInput.value.trim();
+    const balanceCell =
+        row.querySelector('.balance');
 
-    if (isNaN(amount) || !noteText) {
-        alert('Enter both a valid amount and note.');
+    const notesList =
+        row.querySelector('.notes ul');
+
+    const amountInput =
+        row.querySelector(
+            'input[type="number"]'
+        );
+
+    const noteInput =
+        row.querySelector(
+            'input[type="text"]'
+        );
+
+    const amount =
+        parseFloat(amountInput.value);
+
+    const noteText =
+        noteInput.value.trim();
+
+    if(isNaN(amount) || !noteText){
+
+        alert(
+            'Enter both a valid amount and note.'
+        );
+
         return;
     }
 
-    let currentBalance = parseFloat(balanceCell.textContent);
-    currentBalance += (type === 'add') ? amount : -amount;
-    balanceCell.textContent = currentBalance.toFixed(2);
+    let currentBalance =
+        parseFloat(
+            balanceCell.textContent
+        );
+
+    currentBalance +=
+        (type === 'add')
+        ? amount
+        : -amount;
+
+    balanceCell.textContent =
+        currentBalance.toFixed(2);
 
     let existingLi = null;
-    notesList.querySelectorAll('li').forEach(li => {
-        if (li.dataset.note === noteText) existingLi = li;
-    });
 
-    if (existingLi) {
-        existingLi.amounts.push((type === 'add' ? '+' : '-') + amount);
+    notesList
+        .querySelectorAll('li')
+        .forEach(li=>{
+
+            if(
+                li.dataset.note
+                === noteText
+            ){
+                existingLi = li;
+            }
+
+        });
+
+    if(existingLi){
+
+        existingLi.amounts.push(
+            (type === 'add'
+                ? '+'
+                : '-') + amount
+        );
+
         updateNoteDisplay(existingLi);
-    } else {
-        const li = document.createElement('li');
+
+    }
+    else{
+
+        const li =
+            document.createElement('li');
+
         li.dataset.note = noteText;
-        li.amounts = [(type === 'add' ? '+' : '-') + amount];
 
-        const wrapper = document.createElement('span');
-        wrapper.className = 'note-text';
+        li.amounts = [
+            (type === 'add'
+                ? '+'
+                : '-') + amount
+        ];
 
-        const amountSpan = document.createElement('span');
-        amountSpan.className = 'note-amounts';
-        amountSpan.textContent = li.amounts.join(' ');
+        const wrapper =
+            document.createElement('span');
 
-        const descSpan = document.createElement('span');
-        descSpan.className = 'note-description';
-        descSpan.textContent = `| ${noteText}`;
+        wrapper.className =
+            'note-text';
+
+        const amountSpan =
+            document.createElement('span');
+
+        amountSpan.className =
+            'note-amounts';
+
+        amountSpan.textContent =
+            li.amounts.join(' ');
+
+        const descSpan =
+            document.createElement('span');
+
+        descSpan.className =
+            'note-description';
+
+        descSpan.textContent =
+            `| ${noteText}`;
 
         wrapper.appendChild(amountSpan);
         wrapper.appendChild(descSpan);
+
         li.appendChild(wrapper);
 
-        const editBtn = document.createElement('button');
-        editBtn.textContent = 'Edit';
-        editBtn.className = 'edit-btn';
-        editBtn.onclick = ()=>{
-            const newAmount = parseFloat(prompt('Enter amount to add/subtract:'));
-            if(!isNaN(newAmount)){
-                const type2 = confirm('Click OK for Add, Cancel for Subtract') ? 'add' : 'subtract';
-                li.amounts.push((type2 === 'add' ? '+' : '-') + newAmount);
-                amountSpan.textContent = li.amounts.join(' ');
+        li.appendChild(
+            createEditButton(li, row)
+        );
 
-                const balanceCell = row.querySelector('.balance');
-                balanceCell.textContent = (parseFloat(balanceCell.textContent) + (type2==='add'?newAmount:-newAmount)).toFixed(2);
+        const delBtn =
+            document.createElement('button');
 
-                calculateTotal();
-                saveAllWallets();
-            }
-        };
-
-        li.appendChild(editBtn);
-
-        const delBtn = document.createElement('button');
         delBtn.textContent = 'DEL';
-        delBtn.className = 'del-btn';
+
+        delBtn.className =
+            'del-btn';
+
         delBtn.onclick = ()=>{
             li.remove();
             saveAllWallets();
         };
 
         li.appendChild(delBtn);
+
         notesList.appendChild(li);
+
     }
 
     amountInput.value = '';
@@ -291,31 +413,63 @@ function addTransfer(btn, type){
 }
 
 function deleteWalletRow(btn){
+
     if(confirm('Delete this wallet?')){
-        const row = btn.parentElement.parentElement;
-        const id = row.dataset.id;
+
+        const row =
+            btn.parentElement.parentElement;
+
+        const id =
+            row.dataset.id;
 
         if(id){
-            db.collection("wallets").doc(id).delete();
+
+            db.collection("wallets")
+                .doc(id)
+                .delete();
         }
 
         row.remove();
+
         calculateTotal();
     }
 }
 
 function calculateTotal(){
+
     let total = 0;
-    document.querySelectorAll('.balance').forEach(cell => {
-        let val = parseFloat(cell.textContent);
-        if (!isNaN(val)) total += val;
-    });
-    document.getElementById('totalBalance').textContent = total.toFixed(2);
+
+    document
+        .querySelectorAll('.balance')
+        .forEach(cell=>{
+
+            let val =
+                parseFloat(
+                    cell.textContent
+                );
+
+            if(!isNaN(val))
+                total += val;
+
+        });
+
+    document
+        .getElementById(
+            'totalBalance'
+        )
+        .textContent =
+        total.toFixed(2);
 }
 
 function addWallet(){
-    const table = document.querySelector("#walletTable tbody");
-    const row = table.insertRow();
+
+    const table =
+        document.querySelector(
+            "#walletTable tbody"
+        );
+
+    const row =
+        table.insertRow();
 
     row.innerHTML = `
         <td contenteditable="true">New Wallet</td>
@@ -335,7 +489,6 @@ function addWallet(){
     saveAllWallets();
 }
 
-// Start realtime listener
 loadWalletsRealtime();
 
 </script>
