@@ -19,6 +19,8 @@
     .edit-btn { background-color: #2196F3; color: white; border: none; padding: 2px 5px; font-size: 12px; margin-left: 5px; }
     .del-btn { background-color: #f44336; color: white; border: none; padding: 2px 5px; font-size: 12px; margin-left: 5px; }
     .del-row-btn { background-color: #9c27b0; color: white; border: none; padding: 3px 7px; font-size: 12px; margin-left: 5px; }
+    .move-up-btn { background-color: #ff9800; color: white; border: none; padding: 2px 5px; font-size: 12px; margin-left: 5px; }
+    .move-down-btn { background-color: #607d8b; color: white; border: none; padding: 2px 5px; font-size: 12px; margin-left: 5px; }
     @keyframes bounce {
         0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
         40% { transform: translateY(-10px); }
@@ -96,14 +98,25 @@ function createEditButton(li, row){
     return editBtn;
 }
 
+function moveRowUp(btn){
+    const row = btn.parentElement.parentElement;
+    const prev = row.previousElementSibling;
+    if(prev) row.parentElement.insertBefore(row, prev);
+}
+
+function moveRowDown(btn){
+    const row = btn.parentElement.parentElement;
+    const next = row.nextElementSibling;
+    if(next) row.parentElement.insertBefore(next, row);
+}
+
 function loadWalletsRealtime(){
     db.collection("wallets").onSnapshot(snapshot => {
         const tbody = document.querySelector("#walletTable tbody");
         tbody.innerHTML = "";
-
         snapshot.forEach(doc => {
             const data = doc.data();
-            const row = tbody.insertRow(); // always append at bottom
+            const row = tbody.insertRow();
             row.dataset.id = doc.id;
             row.innerHTML = `
                 <td contenteditable="true">${data.name}</td>
@@ -115,44 +128,44 @@ function loadWalletsRealtime(){
                     <input type="text" placeholder="Note">
                     <button onclick="addTransfer(this,'add')">Add</button>
                     <button onclick="addTransfer(this,'subtract')">Subtract</button>
+                    <button class="move-up-btn">⬆</button>
+                    <button class="move-down-btn">⬇</button>
                     <button class="del-row-btn" onclick="deleteWalletRow(this)">DEL ROW</button>
                 </td>
             `;
-            const notesList = row.querySelector('.notes ul');
+            row.querySelector('.move-up-btn').onclick = function(){ moveRowUp(this); };
+            row.querySelector('.move-down-btn').onclick = function(){ moveRowDown(this); };
 
+            const notesList = row.querySelector('.notes ul');
             if(data.notes){
                 data.notes.forEach(note=>{
                     const li = document.createElement('li');
                     li.dataset.note = note.text;
                     li.amounts = note.amounts || [];
-
                     const wrapper = document.createElement('span');
                     wrapper.className = 'note-text';
-
                     const amountSpan = document.createElement('span');
                     amountSpan.className = 'note-amounts';
                     amountSpan.textContent = li.amounts.join(' ');
-
                     const descSpan = document.createElement('span');
                     descSpan.className = 'note-description';
                     descSpan.textContent = `| ${note.text}`;
-
                     wrapper.appendChild(amountSpan);
                     wrapper.appendChild(descSpan);
                     li.appendChild(wrapper);
 
-                    const editBtn = createEditButton(li, row);
+                    const editBtn = createEditButton(li,row);
                     const delBtn = document.createElement('button');
-                    delBtn.textContent = 'DEL';
-                    delBtn.className = 'del-btn';
-                    delBtn.onclick = ()=>{
+                    delBtn.textContent='DEL';
+                    delBtn.className='del-btn';
+                    delBtn.onclick=()=>{
                         const balanceCell = row.querySelector('.balance');
                         let currentBalance = parseFloat(balanceCell.textContent);
                         li.amounts.forEach(a=>{
-                            const val = parseFloat(a.replace(/[+-]/,''));
-                            currentBalance -= a.startsWith('+') ? val : -val;
+                            const val=parseFloat(a.replace(/[+-]/,''));
+                            currentBalance -= a.startsWith('+')?val:-val;
                         });
-                        balanceCell.textContent = currentBalance.toFixed(2);
+                        balanceCell.textContent=currentBalance.toFixed(2);
                         li.remove();
                         calculateTotal();
                         saveAllWallets();
@@ -164,7 +177,6 @@ function loadWalletsRealtime(){
                 });
             }
         });
-
         calculateTotal();
     });
 }
@@ -174,7 +186,6 @@ function saveAllWallets(){
     rows.forEach(row=>{
         const id = row.dataset.id || db.collection("wallets").doc().id;
         row.dataset.id = id;
-
         const name = row.cells[0].textContent;
         const balance = parseFloat(row.querySelector('.balance').textContent) || 0;
         const currency = row.cells[2].textContent;
@@ -261,18 +272,9 @@ function deleteWalletRow(btn){
     }
 }
 
-function calculateTotal(){
-    let total=0;
-    document.querySelectorAll('.balance').forEach(cell=>{
-        const val=parseFloat(cell.textContent);
-        if(!isNaN(val)) total+=val;
-    });
-    document.getElementById('totalBalance').textContent=total.toFixed(2);
-}
-
 function addWallet(){
     const table = document.querySelector("#walletTable tbody");
-    const row = table.insertRow(); // always append at bottom
+    const row = table.insertRow();
     const id = db.collection("wallets").doc().id;
     row.dataset.id = id;
     row.innerHTML=`
@@ -285,9 +287,13 @@ function addWallet(){
             <input type="text" placeholder="Note">
             <button onclick="addTransfer(this,'add')">Add</button>
             <button onclick="addTransfer(this,'subtract')">Subtract</button>
+            <button class="move-up-btn">⬆</button>
+            <button class="move-down-btn">⬇</button>
             <button class="del-row-btn" onclick="deleteWalletRow(this)">DEL ROW</button>
         </td>
     `;
+    row.querySelector('.move-up-btn').onclick = function(){ moveRowUp(this); };
+    row.querySelector('.move-down-btn').onclick = function(){ moveRowDown(this); };
     db.collection("wallets").doc(id).set({
         name: 'New Wallet',
         balance: 0,
