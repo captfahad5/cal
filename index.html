@@ -77,7 +77,6 @@ function updateNoteDisplay(li){
     amountSpan.textContent = li.amounts.join(' ');
 }
 
-// Create edit button (does not append to text, will be next to DEL)
 function createEditButton(li, row){
     const editBtn = document.createElement('button');
     editBtn.textContent = 'Edit';
@@ -104,7 +103,7 @@ function loadWalletsRealtime(){
 
         snapshot.forEach(doc => {
             const data = doc.data();
-            const row = tbody.insertRow(-1); // always at bottom
+            const row = tbody.insertRow(); // always append at bottom
             row.dataset.id = doc.id;
             row.innerHTML = `
                 <td contenteditable="true">${data.name}</td>
@@ -142,13 +141,11 @@ function loadWalletsRealtime(){
                     wrapper.appendChild(descSpan);
                     li.appendChild(wrapper);
 
-                    // buttons at the end
                     const editBtn = createEditButton(li, row);
                     const delBtn = document.createElement('button');
                     delBtn.textContent = 'DEL';
                     delBtn.className = 'del-btn';
                     delBtn.onclick = ()=>{
-                        // revert balance before deleting
                         const balanceCell = row.querySelector('.balance');
                         let currentBalance = parseFloat(balanceCell.textContent);
                         li.amounts.forEach(a=>{
@@ -163,7 +160,6 @@ function loadWalletsRealtime(){
 
                     li.appendChild(editBtn);
                     li.appendChild(delBtn);
-
                     notesList.appendChild(li);
                 });
             }
@@ -230,7 +226,6 @@ function addTransfer(btn, type){
         wrapper.appendChild(descSpan);
         li.appendChild(wrapper);
 
-        // buttons at the end
         const editBtn = createEditButton(li,row);
         const delBtn = document.createElement('button');
         delBtn.textContent='DEL';
@@ -277,7 +272,9 @@ function calculateTotal(){
 
 function addWallet(){
     const table = document.querySelector("#walletTable tbody");
-    const row = table.insertRow(-1); // bottom
+    const row = table.insertRow(); // always append at bottom
+    const id = db.collection("wallets").doc().id;
+    row.dataset.id = id;
     row.innerHTML=`
         <td contenteditable="true">New Wallet</td>
         <td class="balance" contenteditable="true">0</td>
@@ -291,7 +288,13 @@ function addWallet(){
             <button class="del-row-btn" onclick="deleteWalletRow(this)">DEL ROW</button>
         </td>
     `;
-    calculateTotal(); saveAllWallets();
+    db.collection("wallets").doc(id).set({
+        name: 'New Wallet',
+        balance: 0,
+        currency: 'USDT',
+        notes: []
+    });
+    calculateTotal();
 }
 
 loadWalletsRealtime();
