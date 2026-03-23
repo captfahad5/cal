@@ -14,19 +14,28 @@
     ul { margin: 0; padding-left: 20px; list-style-type: none; }
     li { margin-bottom: 3px; display: flex; justify-content: space-between; align-items: center; }
     .note-text { display: flex; }
-    .note-amounts {
-        font-weight: bold;
-        width: 150px;
-        text-align: right;
-        margin-right: 10px;
-    }
+    .note-amounts { font-weight: bold; width: 150px; text-align: right; margin-right: 10px; }
     .note-description { flex: 1; }
-    .edit-btn { background-color: #2196F3; color: white; border: none; padding: 2px 5px; font-size: 12px; margin-right: 5px; }
+    .edit-btn { background-color: #2196F3; color: white; border: none; padding: 2px 5px; font-size: 12px; margin-left: 5px; }
     .del-btn { background-color: #f44336; color: white; border: none; padding: 2px 5px; font-size: 12px; margin-left: 5px; }
     .del-row-btn { background-color: #9c27b0; color: white; border: none; padding: 3px 7px; font-size: 12px; margin-left: 5px; }
+    @keyframes bounce {
+        0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+        40% { transform: translateY(-10px); }
+        60% { transform: translateY(-5px); }
+    }
+    .header-bounce { 
+        font-size: 16px; 
+        font-weight: bold; 
+        text-align: center; 
+        margin-bottom: 20px; 
+        animation: bounce 2s infinite; 
+    }
 </style>
 </head>
 <body>
+
+<div class="header-bounce">Made By Capt Fahad | Powered By AI</div>
 
 <h1>📊 Crypto Wallet Tracker Ledger v8 (Realtime)</h1>
 
@@ -51,7 +60,6 @@
 <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
 
 <script>
-
 const firebaseConfig = {
   apiKey: "AIzaSyAPgCWfTeRUebCCVeEwxnAXOWYX1dxwhZE",
   authDomain: "crypto-ledger-6d5fb.firebaseapp.com",
@@ -186,10 +194,7 @@ function loadWalletsRealtime(){
 
                     li.appendChild(wrapper);
 
-                    li.appendChild(
-                        createEditButton(li, row)
-                    );
-
+                    // Add edit button next to DEL button
                     const delBtn =
                         document.createElement('button');
 
@@ -201,6 +206,7 @@ function loadWalletsRealtime(){
                         saveAllWallets();
                     };
 
+                    li.appendChild(editBtnClone(li, row)); // edit button next to DEL
                     li.appendChild(delBtn);
 
                     notesList.appendChild(li);
@@ -212,6 +218,45 @@ function loadWalletsRealtime(){
         calculateTotal();
 
     });
+}
+
+// Helper to create clone of edit button per note
+function editBtnClone(li, row){
+    const btn = document.createElement('button');
+    btn.textContent = 'Edit';
+    btn.className = 'edit-btn';
+    btn.onclick = ()=>{
+
+        const newAmount = parseFloat(prompt('Enter amount:'));
+
+        if(!isNaN(newAmount)){
+
+            const type2 =
+                confirm('OK = Add, Cancel = Subtract')
+                ? 'add'
+                : 'subtract';
+
+            li.amounts.push(
+                (type2 === 'add' ? '+' : '-') + newAmount
+            );
+
+            updateNoteDisplay(li);
+
+            const balanceCell =
+                row.querySelector('.balance');
+
+            balanceCell.textContent = (
+                parseFloat(balanceCell.textContent) +
+                (type2 === 'add'
+                    ? newAmount
+                    : -newAmount)
+            ).toFixed(2);
+
+            calculateTotal();
+            saveAllWallets();
+        }
+    };
+    return btn;
 }
 
 function saveAllWallets(){
@@ -382,9 +427,8 @@ function addTransfer(btn, type){
 
         li.appendChild(wrapper);
 
-        li.appendChild(
-            createEditButton(li, row)
-        );
+        // Add Edit next to DEL
+        li.appendChild(editBtnClone(li, row));
 
         const delBtn =
             document.createElement('button');
@@ -469,7 +513,7 @@ function addWallet(){
         );
 
     const row =
-        table.insertRow();
+        table.insertRow(-1); // Insert at bottom
 
     row.innerHTML = `
         <td contenteditable="true">New Wallet</td>
@@ -490,7 +534,6 @@ function addWallet(){
 }
 
 loadWalletsRealtime();
-
 </script>
 
 </body>
