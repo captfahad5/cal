@@ -110,11 +110,21 @@ function moveRowDown(btn){
     if(next) row.parentElement.insertBefore(next, row);
 }
 
+function calculateTotal(){
+    let total = 0;
+    document.querySelectorAll('.balance').forEach(cell=>{
+        let val = parseFloat(cell.textContent);
+        if(isNaN(val)) val = 0;
+        total += val;
+    });
+    document.getElementById('totalBalance').textContent = total.toFixed(2);
+}
+
 function loadWalletsRealtime(){
-    db.collection("wallets").onSnapshot(snapshot => {
+    db.collection("wallets").onSnapshot(snapshot=>{
         const tbody = document.querySelector("#walletTable tbody");
         tbody.innerHTML = "";
-        snapshot.forEach(doc => {
+        snapshot.forEach(doc=>{
             const data = doc.data();
             const row = tbody.insertRow();
             row.dataset.id = doc.id;
@@ -142,6 +152,7 @@ function loadWalletsRealtime(){
                     const li = document.createElement('li');
                     li.dataset.note = note.text;
                     li.amounts = note.amounts || [];
+
                     const wrapper = document.createElement('span');
                     wrapper.className = 'note-text';
                     const amountSpan = document.createElement('span');
@@ -160,7 +171,7 @@ function loadWalletsRealtime(){
                     delBtn.className='del-btn';
                     delBtn.onclick=()=>{
                         const balanceCell = row.querySelector('.balance');
-                        let currentBalance = parseFloat(balanceCell.textContent);
+                        let currentBalance = parseFloat(balanceCell.textContent) || 0;
                         li.amounts.forEach(a=>{
                             const val=parseFloat(a.replace(/[+-]/,''));
                             currentBalance -= a.startsWith('+')?val:-val;
@@ -208,7 +219,7 @@ function addTransfer(btn, type){
     const noteText = noteInput.value.trim();
     if(isNaN(amount) || !noteText){ alert('Enter both a valid amount and note.'); return; }
 
-    let currentBalance = parseFloat(balanceCell.textContent);
+    let currentBalance = parseFloat(balanceCell.textContent) || 0;
     currentBalance += type === 'add' ? amount : -amount;
     balanceCell.textContent = currentBalance.toFixed(2);
 
@@ -242,7 +253,7 @@ function addTransfer(btn, type){
         delBtn.textContent='DEL';
         delBtn.className='del-btn';
         delBtn.onclick=()=>{
-            let bal = parseFloat(balanceCell.textContent);
+            let bal = parseFloat(balanceCell.textContent) || 0;
             li.amounts.forEach(a=>{
                 const val=parseFloat(a.replace(/[+-]/,''));
                 bal -= a.startsWith('+')?val:-val;
